@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- XML DTD "empresa.dtd" -->
+<!ELEMENT empresa (nom,dataCreacio,departaments,empleats)>
+  <!ELEMENT departaments (dept*)>
+    <!ELEMENT dept (nom,localitat?)>
+      <!ATTLIST dept codi ID #REQUIRED>
+  <!ELEMENT empleats (emp*)>
+    <!ELEMENT emp (cognom, ofici?, dataAlta?, salari?, comissio?)>
+      <!ATTLIST emp
+        codi ID #REQUIRED
+        dept IDREF #IMPLIED
+        cap IDREF #IMPLIED
+      >
+  <!ELEMENT nom (#PCDATA)>
+  <!ELEMENT dataCreacio (#PCDATA)>
+  <!ELEMENT localitat (#PCDATA)>
+  <!ELEMENT cognom (#PCDATA)>
+  <!ELEMENT ofici (#PCDATA)>
+  <!ELEMENT dataAlta (#PCDATA)>
+  <!ELEMENT salari (#PCDATA)>
+  <!ELEMENT comissio (#PCDATA)>
+
+<!-- Requeriments:
+  - Codi de departament = d## (caràcter "d" com a prefix al codi numèric)
+  - Codi d'empleat = e#### (caràcter "e" com a prefix al codi numèric)
+  - Dates en format yyyy-mm-dd
+-->

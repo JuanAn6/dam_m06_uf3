@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE empresa SYSTEM "empresa.dtd">
+<empresa>
+  <nom>Nyaps a domicili</nom>
+  <dataCreacio>2000-01-01</dataCreacio>
+  <departaments>
+    <dept codi="d10">
+      <nom>Comptabilitat</nom>
+      <localitat>Sevilla</localitat>
+    </dept>
+    <dept codi="d20">
+      <nom>Investigació</nom>
+      <localitat>Madrid</localitat>
+    </dept>
+    <dept codi="d30">
+      <nom>Vendes</nom>
+      <localitat>Barcelona</localitat>
+    </dept>
+    <dept codi="d40">
+      <nom>Producció</nom>
+      <localitat>Bilbao</localitat>
+    </dept>
+  </departaments>
+  <empleats>
+    <emp codi="e7369" dept="d20" cap="e7902">
+      <cognom>Sanchez</cognom>
+      <ofici>Empleat</ofici>
+      <dataAlta>1980-02-17</dataAlta>
+      <salari>104000</salari>
+    </emp>
+    <emp codi="e7499" dept="d30" cap="e7698">
+      <cognom>Arroyo</cognom>
+      <ofici>Venedor</ofici>
+      <dataAlta>1980-02-20</dataAlta>
+      <salari>208000</salari>
+      <comissio>39000</comissio>
+    </emp>
+    <emp codi="e7521" dept="d30" cap="e7698">
+      <cognom>Sala</cognom>
+      <ofici>Venedor</ofici>
+      <dataAlta>1981-02-22</dataAlta>
+      <salari>162500</salari>
+      <comissio>65000</comissio>
+    </emp>
+    <emp codi="e7566" dept="d20" cap="e7839">
+      <cognom>Jimenez</cognom>
+      <ofici>Director</ofici>
+      <dataAlta>1981-04-02</dataAlta>
+      <salari>386750</salari>
+    </emp>
+    <emp codi="e7654" dept="d30" cap="e7698">
+      <cognom>Martin</cognom>
+      <ofici>Venedor</ofici>
+      <dataAlta>1981-09-29</dataAlta>
+      <salari>162500</salari>
+      <comissio>182000</comissio>
+    </emp>
+    <emp codi="e7698" dept="d30" cap="e7839">
+      <cognom>Negro</cognom>
+      <ofici>Director</ofici>
+      <dataAlta>1981-05-01</dataAlta>
+      <salari>370500</salari>
+    </emp>
+    <emp codi="e7782" dept="d10" cap="e7839">
+      <cognom>Cerezo</cognom>
+      <ofici>Director</ofici>
+      <dataAlta>1981-06-09</dataAlta>
+      <salari>318500</salari>
+    </emp>
+    <emp codi="e7788" dept="d20" cap="e7566">
+      <cognom>Gil</cognom>
+      <ofici>Analista</ofici>
+      <dataAlta>1981-11-09</dataAlta>
+      <salari>390000</salari>
+    </emp>
+    <emp codi="e7839" dept="d10">
+      <cognom>Rey</cognom>
+      <ofici>President</ofici>
+      <dataAlta>1981-11-17</dataAlta>
+      <salari>650000</salari>
+    </emp>
+    <emp codi="e7844" dept="d30" cap="e7698">
+      <cognom>Tovar</cognom>
+      <ofici>Venedor</ofici>
+      <dataAlta>1981-09-08</dataAlta>
+      <salari>195000</salari>
+      <comissio>0</comissio>
+    </emp>
+    <emp codi="e7876" dept="d20" cap="e7788">
+      <cognom>Alonso</cognom>
+      <ofici>Empleat</ofici>
+      <dataAlta>1981-09-23</dataAlta>
+      <salari>143000</salari>
+    </emp>
+    <emp codi="e7900" dept="d30" cap="e7698">
+      <cognom>Jimeno</cognom>
+      <ofici>Empleat</ofici>
+      <dataAlta>1981-12-03</dataAlta>
+      <salari>123500</salari>
+    </emp>
+    <emp codi="e7902" dept="d20" cap="e7566">
+      <cognom>Fernández</cognom>
+      <ofici>Analista</ofici>
+      <dataAlta>1981-12-03</dataAlta>
+      <salari>390000</salari>
+    </emp>
+    <emp codi="e7934" dept="d10" cap="e7782">
+      <cognom>Muñoz</cognom>
+      <ofici>Empleat</ofici>
+      <dataAlta>1982-01-23</dataAlta>
+      <salari>169000</salari>
+    </emp>
+  </empleats>
+</empresa>
