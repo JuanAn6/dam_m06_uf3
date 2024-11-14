@@ -431,16 +431,13 @@ public class EPBaseX {
             
             String [] subordinats = emps.split(System.getProperty("line.separator"));
            
-            for(int i = 0; i < subordinats.length; i++){
-                
-                if(Integer.parseInt(subordinats[i].substring(1)) == emp){
+            for (String subordinat : subordinats) {
+                if (Integer.parseInt(subordinat.substring(1)) == emp) {
                     return true;
                 }
-                
-                if(esSubordinatDirecteIndirecte(Integer.parseInt(subordinats[i].substring(1)), emp)){
+                if (esSubordinatDirecteIndirecte(Integer.parseInt(subordinat.substring(1)), emp)) {
                     return true;
                 }
-                
             }
             
         } catch (Exception ex) {
