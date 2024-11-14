@@ -11,6 +11,7 @@ import java.io.StringReader;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.HashMap;
 import java.util.Properties;
 import org.basex.api.client.ClientQuery;
 import org.basex.api.client.ClientSession;
@@ -42,6 +43,14 @@ public class EPBaseX {
     private ClientSession con;
     private String path;
     private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+    
+    //Estructures per guardar els objectes carregats en memoria
+    private Empresa empresa = null; 
+    private HashMap<Integer, Departament> hmDepts = new HashMap();
+    private HashMap<Integer, Empleat> hmEmps = new HashMap();
+
+    
+    
     
     /**
      * Constructor per establir la connexió amb la base de dades amb el fitxer default
@@ -134,8 +143,13 @@ public class EPBaseX {
      * Recupera l'objecte empresa
      * 
      * @return Empresa
+     * @throws EPBaseXException
      */
     public Empresa getEmpresa(){
+        
+        //Si la empresa ja està carregada
+        if(empresa != null) return empresa;
+        
         String nom = null;
         Calendar data = Calendar.getInstance();
         ClientQuery cq = null;
@@ -156,20 +170,24 @@ public class EPBaseX {
         }finally{
             tancarQuery(cq);
         }
-        
-        return new Empresa(nom, data);
+        empresa = new Empresa(nom, data);
+        return empresa;
     }
     
     /**
      * Recupera un objecte departament en base a un codi
-     * 
-     * @return Empresa
+     * @param codi
+     * @return Departament
+     * @throws EPBaseXException
      */
     public Departament getDepartament(int codi){
         
         if(codi <= 0 && codi >= 99){
             throw new EPBaseXException("Codi de departamnet NO vàlid");
         }
+        
+        //Si el departament ja esta en memoria el retorna
+        if(hmDepts.containsKey(codi)) return hmDepts.get(codi);
         
         Departament dept = null;
         ClientQuery cq = null;
@@ -191,7 +209,7 @@ public class EPBaseX {
             
             dept = new Departament(codi, nom, localitat);
             
-            
+            hmDepts.put(codi, dept);
             return dept;
             
         } catch (Exception ex) {
@@ -202,19 +220,37 @@ public class EPBaseX {
         
     }
     
+    
+    
+    /**
+     * Recupera un objecte Empleat en base a un codi
+     * @param codi
+     * @return Empleat
+     * @throws EPBaseXException
+     */
+    
+    
     public Empleat getEmpleat(int codi){
         
-        if(codi <= 0 && codi >= 9999){
-            throw new EPBaseXException("Codi de empleat NO vàlid");
+//        if(codi <= 0 && codi >= 9999){
+//            throw new EPBaseXException("Codi de empleat NO vàlid");
+//        }
+        
+        try{
+            new Empleat(codi, "???", null);
+        }catch(Exception ex){
+            throw new EPBaseXException("Error en generar el Empleat codi NO vàlid", ex);
         }
+        
+        if(hmEmps.containsKey(codi)) return hmEmps.get(codi);
         
         Empleat emp = null;
         ClientQuery cq = null;
         
         try {
-            String getDept = path+"/empresa/empleats/emp[@codi='e"+codi+"']";
+            String getEmp = path+"/empresa/empleats/emp[@codi='e"+codi+"']";
             
-            cq = con.query(getDept);
+            cq = con.query(getEmp);
             String emp_string = cq.execute();
             
             SAXBuilder buildSax = new SAXBuilder();
@@ -225,22 +261,30 @@ public class EPBaseX {
             Element rootElement = document.getRootElement();
             
             String cognom = rootElement.getChild("cognom").getValue();
+            
             String ofici = rootElement.getChild("ofici").getValue();
-            
             String deptCode = rootElement.getAttributeValue("dept");
-            Departament dept = getDepartament(Integer.parseInt(deptCode.substring(1)));
             
-            Calendar dataAlta = Calendar.getInstance();
-            dataAlta.setTime(dateFormat.parse(rootElement.getChild("dataAlta").getValue()));
-            
-            Double salari = Double.parseDouble(rootElement.getChild("salari").getValue());
-
-            Double comissio = null;
-            
-            if(rootElement.getChild("salari") != null){
-                comissio = Double.parseDouble(rootElement.getChild("salari").getValue());
+            Departament dept = null;
+            if(deptCode != null){
+                dept = getDepartament(Integer.parseInt(deptCode.substring(1)));
             }
-
+            
+            Calendar dataAlta = null;
+            if(rootElement.getChildText("dataAlta") != null){
+                dataAlta = Calendar.getInstance();
+                dataAlta.setTime(dateFormat.parse(rootElement.getChildText("dataAlta")));
+            }
+            
+            Double salari = null;
+            if(rootElement.getChildText("salari") != null && rootElement.getChildText("salari").equals("")){
+                salari = Double.parseDouble(rootElement.getChildText("salari"));            
+            }
+            
+            Double comissio = null;
+            if(rootElement.getChildText("comissio") != null && rootElement.getChildText("comissio").equals("")){
+                comissio = Double.parseDouble(rootElement.getChildText("comissio"));
+            }
             
             Empleat cap = null;
             if(rootElement.getAttribute("cap") != null){
@@ -248,7 +292,7 @@ public class EPBaseX {
             }
             
             emp = new Empleat(codi, cognom, ofici, dataAlta, salari, comissio, cap, dept);
-            
+            hmEmps.put(codi, emp);
             return emp;
             
         } catch (Exception ex) {
@@ -257,6 +301,157 @@ public class EPBaseX {
             tancarQuery(cq);
         }
     }
+    
+    
+    
+    /**
+     * Retorna el numero de subordinats del emplat amb el codi que es pasa
+     * @param codi
+     * @return boolean
+     * @throws EPBaseXException
+     */
+    
+    
+    public int getSubordinats(int codi){
+        
+        if(!existeixEmpleat(codi)){
+            throw new EPBaseXException("El empleat no existeix!");
+        }
+        
+        ClientQuery cq = null;
+        try{
+            
+            String getEmpsCount = "count("+path+"/empresa/empleats/emp[@cap='e"+codi+"'])";
+            cq = con.query(getEmpsCount);
+            String count = cq.execute();
+            
+            return Integer.parseInt(count);
+            
+        } catch (Exception ex) {
+            throw new EPBaseXException("Error en recuperar empleat", ex);
+        }finally{
+            tancarQuery(cq);
+        }
+        
+        
+    }
+    
+    
+    /**
+     * Retorna un boolean si el empleat existeix
+     * @param codi
+     * @reutrn boolean
+     * @throws EPBaseXException
+     */
+    
+    public boolean existeixEmpleat(int codi){
+        
+        //per saber si el codi es valid abans de fer la petició a la base de dades
+        try{
+            new Empleat(codi, "???", null);
+        }catch(Exception ex){
+            return false;
+        }
+        
+        if(hmEmps.containsKey(codi)){
+            return true;
+        }
+        
+        boolean exist = false;
+        ClientQuery cq = null;
+        try{
+            
+            String getEmp = path+"/empresa/empleats/emp[@codi='e"+codi+"']/@codi/string()";
+            cq = con.query(getEmp);
+            String emp_string = cq.execute();
+            
+            if(!emp_string.equals("")){
+                exist = true;
+            }
+            
+        } catch (Exception ex) {
+            throw new EPBaseXException("Error en recuperar empleat", ex);
+        }finally{
+            tancarQuery(cq);
+        }
+        
+        return exist;
+    }
+    
+    
+     /**
+     * Eliminar un empleat i si ens pasen un codi de cap se asigna un nou cap als empleats que esquedarien sense
+     * si es pasa 0 els empleats es queden sense cap.
+     * @param codi
+     * @param actCap
+     * @reutrn boolean
+     * @throws EPBaseXException
+     */
+    
+    public boolean eliminarEmpleat(int codi, int actCap){
+        
+        //per saber si el codi es valid abans de fer la petició a la base de dades
+        try{
+            new Empleat(codi, "???", null);
+        }catch(Exception ex){
+            throw new EPBaseXException("Codi de empleat erroni", ex);
+        }
+        
+        if(actCap < 0 ){
+            throw new EPBaseXException("Codi de empleat erroni");
+        }
+        return false;
+    }
+    
+    
+    /**
+     * Retorna un boolean si el empleat existeix
+     * @param codi
+     * @reutrn boolean
+     * @throws EPBaseXException
+     */
+    
+    public boolean esSubordinatDirecteIndirecte(int cap, int emp){
+        
+        if(!existeixEmpleat(cap) || !existeixEmpleat(emp)){
+            throw new EPBaseXException("El empleat o el cap no existeixen a la base de dades");
+        }
+        
+        boolean exist = false;
+        ClientQuery cq = null;
+        try{
+            
+            String getEmp = path+"//emp[@cap='e"+cap+"']/@codi/string()";
+            cq = con.query(getEmp);
+            String emps = cq.execute();
+            
+            if(emps.equals("")){
+                return false;
+            }
+            
+            String [] subordinats = emps.split(System.getProperty("line.separator"));
+           
+            for(int i = 0; i < subordinats.length; i++){
+                
+                if(Integer.parseInt(subordinats[i].substring(1)) == emp){
+                    return true;
+                }
+                
+                if(esSubordinatDirecteIndirecte(Integer.parseInt(subordinats[i].substring(1)), emp)){
+                    return true;
+                }
+                
+            }
+            
+        } catch (Exception ex) {
+            throw new EPBaseXException("Error en recuperar empleat", ex);
+        }finally{
+            tancarQuery(cq);
+        }
+        
+        return exist;
+    }
+    
     
     
     
@@ -269,7 +464,7 @@ public class EPBaseX {
                 q.close();                
             }
         } catch (IOException ex) {
-            throw new EPBaseXException("Error en recuperar empresa", ex);
+            throw new EPBaseXException("Error en tancar la connexió", ex);
         }
     }
     

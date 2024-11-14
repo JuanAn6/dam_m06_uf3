@@ -36,7 +36,7 @@ public class Main {
         /* Feina de l'aplicació */
         System.out.println("Començament de les proves!");
         try{
-            
+            /*
             Empresa empresa = ep.getEmpresa();
             System.out.println(empresa.toString());
             
@@ -47,7 +47,18 @@ public class Main {
             
             Empleat emp = ep.getEmpleat(7369);
             System.out.println("Emp: "+emp);
-        
+            
+            boolean e = ep.existeixEmpleat(7499);
+            System.out.println("Exists: "+e);
+            
+            int count = ep.getSubordinats(7839);
+            System.out.println("Count: "+count);
+            */
+            
+            System.out.println(ep.esSubordinatDirecteIndirecte(7839, 7499));
+            
+            
+            
         }catch(Exception ex){
             System.out.println("Error en les consultes");
             infoError(ex);
