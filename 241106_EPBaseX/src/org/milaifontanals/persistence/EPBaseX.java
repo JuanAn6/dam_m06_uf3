@@ -11,13 +11,14 @@ import java.io.StringReader;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Properties;
 import org.basex.api.client.ClientQuery;
 import org.basex.api.client.ClientSession;
 import org.jdom2.Document;
 import org.jdom2.Element;
-import org.jdom2.JDOMException;
 import org.jdom2.input.SAXBuilder;
 import org.milaifontanals.empresa.Departament;
 import org.milaifontanals.empresa.Empleat;
@@ -397,6 +398,85 @@ public class EPBaseX {
             throw new EPBaseXException("Codi de empleat erroni", ex);
         }
         
+        if(codi == actCap){
+            throw new EPBaseXException("Han de ser diferents");
+        }
+        
+        if(actCap < 0){
+            throw new EPBaseXException("El codi actCap es erroni");
+        }
+        
+        
+        ClientQuery cq = null;
+        String query = "";
+        try{
+            
+            
+            if(actCap == 0){
+                
+                //S'elimina els atributs cap dels subordinats
+                query = "delete node "+path+"//emp[@cap='e"+codi+"']/@cap";
+                query = query+" , ";
+            
+            }else{
+               
+                if(!this.existeixEmpleat(codi)){
+                    throw new EPBaseXException("El Empleat no existex");
+                }
+                
+                if(this.esSubordinatDirecteIndirecte(codi, actCap)){
+                    throw new EPBaseXException("El nou cap es subordinat del que s'elimina!");
+                }
+
+                //Això només per quan es segur que es nomes un únic camp el que es modifica
+                //query = "replace value of node "+path+"//emp[@cap='e"+codi+"']/@cap with 'e"+actCap+"'";
+                
+                //Es modifica els atributs cap dels subordinats
+                query = query + "for $n in "+path+"//emp[@cap='e"+codi+"']\n " 
+                    + "return replace value of node $n /@cap with 'e"+actCap+"'\n";
+                query = query+" , ";
+                
+            }
+            
+            
+            query = "delete node "+path+"//emp[@codi='e"+codi+"']";
+            cq = con.query(query);
+            cq.execute();
+            
+            //Actualitzar els empleats en memoria
+            hmEmps.remove(codi);
+            
+            Collection empleats = hmEmps.values();
+            Iterator <Empleat> iteEmps = null;
+            
+            if(actCap == 0){
+                iteEmps = empleats.iterator();
+                while(iteEmps.hasNext()){
+                    Empleat e = iteEmps.next();
+                    if(e.getCap() != null && e.getCap().getCodi() == codi){
+                        e.setCap(null);
+                    }
+                }
+                
+            }else{
+                Empleat nouCap = this.getEmpleat(actCap);
+                
+                //El iterator ha de ser creat abans de modificar el HashMap perque si no no funciona bé
+                iteEmps = empleats.iterator();
+                
+                while(iteEmps.hasNext()){
+                    Empleat e = iteEmps.next();
+                    if(e.getCap() != null && e.getCap().getCodi() == codi){
+                        e.setCap(nouCap);
+                    }
+                }
+            }
+            
+            
+        }catch(Exception ex){
+            throw new EPBaseXException("Error en eliminar empleat", ex);
+        }
+        
         if(actCap < 0 ){
             throw new EPBaseXException("Codi de empleat erroni");
         }
@@ -424,6 +504,8 @@ public class EPBaseX {
             String getEmp = path+"//emp[@cap='e"+cap+"']/@codi/string()";
             cq = con.query(getEmp);
             String emps = cq.execute();
+            
+            
             
             if(emps.equals("")){
                 return false;
