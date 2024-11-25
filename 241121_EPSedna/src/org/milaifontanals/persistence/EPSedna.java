@@ -10,40 +10,51 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Properties;
-import org.basex.api.client.ClientQuery;
-import org.basex.api.client.ClientSession;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.jdom2.Document;
 import org.jdom2.Element;
 import org.jdom2.input.SAXBuilder;
 import org.milaifontanals.empresa.Departament;
 import org.milaifontanals.empresa.Empleat;
 import org.milaifontanals.empresa.Empresa;
+import ru.ispras.sedna.driver.DatabaseManager;
+import ru.ispras.sedna.driver.DriverException;
+import ru.ispras.sedna.driver.SednaConnection;
+import ru.ispras.sedna.driver.SednaSerializedResult;
+import ru.ispras.sedna.driver.SednaStatement;
 
 /**
  *
  * @author Juan Antonio
- * 
+ *
  * Capa de persistencia per la gestió de l'empresa amb els departaments empleats...
- * Fitxer de propietats accecible via load(Reader) default file: "EPBaseX.properties"
- * 
+ * Fitxer de propietats accecible via load(Reader) default file: "EPSedna.properties"
+ *
  * Parametres:
  * <ul>
  *  <li>host</li>
  *  <li>port</li>
+ *  <li>database</li>
  *  <li>user</li>
  *  <li>pass</li>
  *  <li>path</li>
  * </ul>
  */
-public class EPBaseX {
-    private ClientSession con;
+public class EPSedna {
+    private SednaConnection con;
     private String path;
     private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+    
+    //Variable per controlar si la transacció està oberta
+    private boolean transOn;
     
     //Estructures per guardar els objectes carregats en memoria
     private Empresa empresa = null; 
@@ -54,32 +65,32 @@ public class EPBaseX {
     
     
     /**
-     * Constructor per establir la connexió amb la base de dades amb el fitxer default
+     * Constructor per establir la connexió amb la base de dades amb el fitxer default EPSedna.properties
      * 
      */
-    public EPBaseX (){
-        this("EPBaseX.properties");
+    public EPSedna (){
+        this("EPSedna.properties");
     }
     
     /**
      * Constructor per establir la connexió amb la base de dades amb el fitxer facilitat en cas de null o vuit 
-     * amb el fitxer default
+     * amb el fitxer default EPSedna.properties
      * 
      * @param nomFitxerPropietats
-     * @throws EPBaseXException
+     * @throws EPSednaException
      */
-    public EPBaseX (String nomFitxerPropietats){
+    public EPSedna (String nomFitxerPropietats){
         if(nomFitxerPropietats == null || nomFitxerPropietats.equals("")){
-            nomFitxerPropietats = "EPBaseX.properties";
+            nomFitxerPropietats = "EPSedna.properties";
         }
         
         Properties props = new Properties();
         try {
             props.load(new FileInputStream(nomFitxerPropietats));
         } catch (FileNotFoundException ex) {
-            throw new EPBaseXException("No es troba el fitxer de propietats: "+nomFitxerPropietats, ex);
+            throw new EPSednaException("No es troba el fitxer de propietats: "+nomFitxerPropietats, ex);
         } catch (IOException ex) {
-            throw new EPBaseXException("Error en intentar carregar el fitxer de propietats: "+nomFitxerPropietats, ex);
+            throw new EPSednaException("Error en intentar carregar el fitxer de propietats: "+nomFitxerPropietats, ex);
         }
         
         
@@ -88,33 +99,38 @@ public class EPBaseX {
         try {
             port = Integer.parseInt(props.getProperty("port"));
         } catch (NumberFormatException ex){
-            throw new EPBaseXException("El port es obligatori i ha de ser un valor enter valid", ex);
+            throw new EPSednaException("El port es obligatori i ha de ser un valor enter valid", ex);
         }
+        String database = props.getProperty("database");
         String user = props.getProperty("user");
         String pass = props.getProperty("pass");
         
         try {
-            con = new ClientSession(host, port, user, pass);
-        } catch (IOException ex) {
-            throw new EPBaseXException("Error en establir la connexió", ex);
+            con = DatabaseManager.getConnection(host+":"+port,database, user, pass);
+        } catch (Exception ex) {
+            throw new EPSednaException("Error en establir la connexió", ex);
         }
         
         path = props.getProperty("path");
         if(path == null || path.equals("")){
             closeCapa();
-            throw new EPBaseXException("El path no esta definit en el arciu de propietats "+nomFitxerPropietats);
+            throw new EPSednaException("El path no esta definit en el arciu de propietats "+nomFitxerPropietats);
         }
         
         /* Prova de path correcte */
+        SednaStatement st;
+        
         try {
-            String tryQuery = path+"//x";
-            ClientQuery cq;
-            cq = con.query(tryQuery);
-            cq.execute();
-            cq.close();
-        } catch (IOException ex) {
+            con.begin();
+            transOn = true;
+            
+            String tryQuery = path+"/x";
+            st = con.createStatement();
+            st.execute(tryQuery);
+            
+        } catch (Exception ex) {
             closeCapa();
-            throw new EPBaseXException("El path no es correcte ( "+path+" )");
+            throw new EPSednaException("El path no es correcte ( "+path+" )", ex);
         }
         
     }
@@ -122,7 +138,7 @@ public class EPBaseX {
     /**
      * Tanca la capa de persistencia, tanca la connexio amb la BD
      * 
-     * @throws EPBaseXException
+     * @throws EPSednaException
      */
     
     public void closeCapa(){
@@ -132,10 +148,43 @@ public class EPBaseX {
             }else{
                 System.out.println("La connexió no estaba establerta! ");
             }
-        } catch (IOException ex) {
-            throw new EPBaseXException("Error en tancar la connexió", ex);
+        } catch (DriverException ex) {
+            throw new EPSednaException("Error en tancar la connexió", ex);
         } finally {
             con = null;
+        }
+    }
+    
+    /**
+     * Commit en el gestor i tanca la transacció activadd
+     */
+    public void commit(){
+        
+        if(transOn){
+            try {
+                con.commit();
+                transOn = false;
+            } catch (DriverException ex) {
+                transOn = false;
+                throw new EPSednaException("Error en fer commit", ex);
+            }
+        }
+            
+    }
+    
+    
+    /**
+     * Rollback en el gestor i tanca la transacció activa
+     */
+    public void rollback(){
+        if(transOn){
+            try {
+                con.rollback();
+                transOn = false;
+            } catch (DriverException ex) {
+                transOn = false;
+                throw new EPSednaException("Error en fer rollback", ex);
+            }
         }
     }
     
@@ -144,7 +193,7 @@ public class EPBaseX {
      * Recupera l'objecte empresa
      * 
      * @return Empresa
-     * @throws EPBaseXException
+     * @throws EPSednaException
      */
     public Empresa getEmpresa(){
         
@@ -153,23 +202,29 @@ public class EPBaseX {
         
         String nom = null;
         Calendar data = Calendar.getInstance();
-        ClientQuery cq = null;
+        SednaStatement st = null;
         
         try {
+            obrirTrans();
+            
             String getNom = path+"/empresa/nom/string()";
-        
-            cq = con.query(getNom);
-            nom = cq.execute();
+            st = con.createStatement();
             
+            st.execute(getNom);
+            nom = st.getSerializedResult().next();
+
+            String d = null;
             String getData = path+"/empresa/dataCreacio/string()";
-            cq = con.query(getData);
-            String d = cq.execute();
-            data.setTime(dateFormat.parse(d));
             
-        } catch (ParseException | IOException ex) {
-            throw new EPBaseXException("Error en recuperar empresa", ex);
-        }finally{
-            tancarQuery(cq);
+            st.execute(getData);
+            d = st.getSerializedResult().next();
+                
+            data.setTime(dateFormat.parse(d));
+        } catch (DriverException ex){
+            transOn = false;
+            throw new EPSednaException("Error en recuperar empresa", ex);
+        } catch (Exception ex) {
+            throw new EPSednaException("Error en recuperar empresa", ex);
         }
         empresa = new Empresa(nom, data);
         return empresa;
@@ -179,24 +234,33 @@ public class EPBaseX {
      * Recupera un objecte departament en base a un codi
      * @param codi
      * @return Departament
-     * @throws EPBaseXException
+     * @throws EPSednaException
      */
     public Departament getDepartament(int codi){
         
         if(codi <= 0 && codi >= 99){
-            throw new EPBaseXException("Codi de departamnet NO vàlid");
+            throw new EPSednaException("Codi de departamnet NO vàlid");
         }
         
         //Si el departament ja esta en memoria el retorna
         if(hmDepts.containsKey(codi)) return hmDepts.get(codi);
         
         Departament dept = null;
-        ClientQuery cq = null;
+        SednaStatement st = null;
         
         try {
+            
+            obrirTrans();
+            
             String getDept = path+"/empresa/departaments/dept[@codi='d"+codi+"']";
-            cq = con.query(getDept);
-            String dept_string = cq.execute();
+            
+            st = con.createStatement();
+            st.execute(getDept);
+            String dept_string = st.getSerializedResult().next();
+            
+            if(dept_string == null){
+               return null;
+            }
             
             SAXBuilder buildSax = new SAXBuilder();
             
@@ -213,46 +277,50 @@ public class EPBaseX {
             hmDepts.put(codi, dept);
             return dept;
             
+        } catch (DriverException ex){
+            transOn = false;
+            throw new EPSednaException("Error en recuperar departament", ex);
         } catch (Exception ex) {
-            throw new EPBaseXException("Error en recuperar departament", ex);
-        }finally{
-            tancarQuery(cq);
+            throw new EPSednaException("Error en recuperar departament", ex);
         }
         
     }
-    
-    
-    
+
+
     /**
      * Recupera un objecte Empleat en base a un codi
      * @param codi
      * @return Empleat
-     * @throws EPBaseXException
+     * @throws EPSednaException
      */
     
     
     public Empleat getEmpleat(int codi){
         
 //        if(codi <= 0 && codi >= 9999){
-//            throw new EPBaseXException("Codi de empleat NO vàlid");
+//            throw new EPSednaException("Codi de empleat NO vàlid");
 //        }
         
         try{
             new Empleat(codi, "???", null);
         }catch(Exception ex){
-            throw new EPBaseXException("Error en generar el Empleat codi NO vàlid", ex);
+            throw new EPSednaException("Error en generar el Empleat codi NO vàlid", ex);
         }
         
         if(hmEmps.containsKey(codi)) return hmEmps.get(codi);
         
         Empleat emp = null;
-        ClientQuery cq = null;
+        SednaStatement st = null;
         
         try {
+            
+            obrirTrans();
+            
             String getEmp = path+"/empresa/empleats/emp[@codi='e"+codi+"']";
             
-            cq = con.query(getEmp);
-            String emp_string = cq.execute();
+            st = con.createStatement();
+            st.execute(getEmp);
+            String emp_string = st.getSerializedResult().next();
             
             SAXBuilder buildSax = new SAXBuilder();
             
@@ -296,10 +364,11 @@ public class EPBaseX {
             hmEmps.put(codi, emp);
             return emp;
             
+        } catch (DriverException ex){
+            transOn = false;
+            throw new EPSednaException("Error en recuperar empleat", ex);
         } catch (Exception ex) {
-            throw new EPBaseXException("Error en recuperar empleat", ex);
-        }finally{
-            tancarQuery(cq);
+            throw new EPSednaException("Error en recuperar empleat", ex);
         }
     }
     
@@ -309,31 +378,33 @@ public class EPBaseX {
      * Retorna el numero de subordinats del emplat amb el codi que es pasa
      * @param codi
      * @return boolean
-     * @throws EPBaseXException
+     * @throws EPSednaException
      */
     
     
     public int getSubordinats(int codi){
         
         if(!existeixEmpleat(codi)){
-            throw new EPBaseXException("El empleat no existeix!");
+            throw new EPSednaException("El empleat no existeix!");
         }
         
-        ClientQuery cq = null;
+        SednaStatement st = null;
         try{
-            
+            obrirTrans();
             String getEmpsCount = "count("+path+"/empresa/empleats/emp[@cap='e"+codi+"'])";
-            cq = con.query(getEmpsCount);
-            String count = cq.execute();
+            
+            st = con.createStatement();
+            st.execute(getEmpsCount);
+            String count = st.getSerializedResult().next();
             
             return Integer.parseInt(count);
-            
-        } catch (Exception ex) {
-            throw new EPBaseXException("Error en recuperar empleat", ex);
-        }finally{
-            tancarQuery(cq);
-        }
         
+        } catch (DriverException ex){
+            transOn = false;
+            throw new EPSednaException("Error en recuperar empleat", ex);
+        } catch (Exception ex) {
+            throw new EPSednaException("Error en recuperar empleat", ex);
+        }
         
     }
     
@@ -342,7 +413,7 @@ public class EPBaseX {
      * Retorna un boolean si el empleat existeix
      * @param codi
      * @reutrn boolean
-     * @throws EPBaseXException
+     * @throws EPSednaException
      */
     
     public boolean existeixEmpleat(int codi){
@@ -359,21 +430,25 @@ public class EPBaseX {
         }
         
         boolean exist = false;
-        ClientQuery cq = null;
+        SednaStatement st = null;
         try{
-            
+            obrirTrans();
             String getEmp = path+"/empresa/empleats/emp[@codi='e"+codi+"']/@codi/string()";
-            cq = con.query(getEmp);
-            String emp_string = cq.execute();
             
-            if(!emp_string.equals("")){
+            st = con.createStatement();
+            st.execute(getEmp);
+            String emp_string = st.getSerializedResult().next();
+            
+            
+            if(emp_string != null && !emp_string.equals("")){
                 exist = true;
             }
             
+        } catch (DriverException ex){
+            transOn = false;
+            throw new EPSednaException("Error en recuperar empleat", ex);
         } catch (Exception ex) {
-            throw new EPBaseXException("Error en recuperar empleat", ex);
-        }finally{
-            tancarQuery(cq);
+            throw new EPSednaException("Error en recuperar empleat", ex);
         }
         
         return exist;
@@ -386,7 +461,7 @@ public class EPBaseX {
      * @param codi
      * @param actCap
      * @reutrn boolean
-     * @throws EPBaseXException
+     * @throws EPSednaException
      */
     
     public boolean eliminarEmpleat(int codi, int actCap){
@@ -395,53 +470,61 @@ public class EPBaseX {
         try{
             new Empleat(codi, "???", null);
         }catch(Exception ex){
-            throw new EPBaseXException("Codi de empleat erroni", ex);
+            throw new EPSednaException("Codi de empleat erroni", ex);
         }
         
         if(codi == actCap){
-            throw new EPBaseXException("Han de ser diferents");
+            throw new EPSednaException("Han de ser diferents");
         }
         
         if(actCap < 0){
-            throw new EPBaseXException("El codi actCap es erroni");
+            throw new EPSednaException("El codi actCap es erroni");
         }
         
         
-        ClientQuery cq = null;
-        String query = "";
+        SednaStatement st = null;
+        //En sedna s'ha d'executar les instruccions una a una.
+        List<String> querys = new ArrayList();
         try{
+            
+            
             
             
             if(actCap == 0){
                 
                 //S'elimina els atributs cap dels subordinats
-                query = "delete node "+path+"//emp[@cap='e"+codi+"']/@cap";
-                query = query+" , ";
+                querys.add("update delete "+path+"//emp[@cap='e"+codi+"']/@cap");
             
             }else{
                
                 if(!this.existeixEmpleat(codi)){
-                    throw new EPBaseXException("El Empleat no existex");
+                    throw new EPSednaException("El Empleat no existex");
                 }
                 
                 if(this.esSubordinatDirecteIndirecte(codi, actCap)){
-                    throw new EPBaseXException("El nou cap es subordinat del que s'elimina!");
+                    throw new EPSednaException("El nou cap es subordinat del que s'elimina!");
                 }
 
                 //Això només per quan es segur que es nomes un únic camp el que es modifica
                 //query = "replace value of node "+path+"//emp[@cap='e"+codi+"']/@cap with 'e"+actCap+"'";
                 
                 //Es modifica els atributs cap dels subordinats
-                query = query + "for $n in "+path+"//emp[@cap='e"+codi+"']\n " 
-                    + "return replace value of node $n /@cap with 'e"+actCap+"'\n";
-                query = query+" , ";
+                querys.add("update replace $n in "+path+"//emp[@cap='e"+codi+"']\n " 
+                    + "with (attribute cap {'e"+actCap+"'})\n");
                 
             }
             
             
-            query = "delete node "+path+"//emp[@codi='e"+codi+"']";
-            cq = con.query(query);
-            cq.execute();
+            querys.add("update delete "+path+"//emp[@codi='e"+codi+"']");
+            
+            obrirTrans();
+            
+            //Execució de totes les consultes
+            st = con.createStatement();
+            for(String query : querys){
+                st.execute(query);
+            }
+            
             
             //Actualitzar els empleats en memoria
             hmEmps.remove(codi);
@@ -473,10 +556,11 @@ public class EPBaseX {
             }
             
             
+        } catch (DriverException ex){
+            transOn = false;
+            throw new EPSednaException("Error en recuperar empleat", ex);
         }catch(Exception ex){
-            throw new EPBaseXException("Error en eliminar empleat", ex);
-        }finally{
-            tancarQuery(cq);
+            throw new EPSednaException("Error en eliminar empleat", ex);
         }
         
         return false;
@@ -487,44 +571,59 @@ public class EPBaseX {
      * Retorna un boolean si el empleat existeix
      * @param codi
      * @reutrn boolean
-     * @throws EPBaseXException
+     * @throws EPSednaException
      */
     
     public boolean esSubordinatDirecteIndirecte(int cap, int emp){
         
         if(!existeixEmpleat(cap) || !existeixEmpleat(emp)){
-            throw new EPBaseXException("El empleat o el cap no existeixen a la base de dades");
+            throw new EPSednaException("El empleat o el cap no existeixen a la base de dades");
         }
         
         boolean exist = false;
-        ClientQuery cq = null;
+        SednaStatement st = null;
         try{
+            obrirTrans();
             
-            String getEmp = path+"//emp[@cap='e"+cap+"']/@codi/string()";
-            cq = con.query(getEmp);
-            String emps = cq.execute();
+            String getEmps = path+"//emp[@cap='e"+cap+"']/@codi/string()";
             
+            st = con.createStatement();
+            st.execute(getEmps);
+            SednaSerializedResult pr = st.getSerializedResult();
             
+            String subordinat;
             
-            if(emps.equals("")){
+            subordinat = pr.next();
+            if(subordinat == null){
                 return false;
             }
             
-            String [] subordinats = emps.split(System.getProperty("line.separator"));
-           
-            for (String subordinat : subordinats) {
-                if (Integer.parseInt(subordinat.substring(1)) == emp) {
+            //Mentres s'esta porcessant un sednaSerialized result no es pot crear un altre;
+            List<String>subordinats = new ArrayList();
+            while (subordinat != null) {
+                subordinats.add(subordinat);
+                subordinat = pr.next();
+            }
+            
+               
+            for (String sub : subordinats) {
+                
+                //A partir del segon resultat retorna tambe un salt de lina per aixo anem directes a la "e" que es el començament del codi
+                sub = sub.substring(sub.indexOf("e")+1);
+                
+                if (Integer.parseInt(sub) == emp) {
                     return true;
                 }
-                if (esSubordinatDirecteIndirecte(Integer.parseInt(subordinat.substring(1)), emp)) {
+                if (esSubordinatDirecteIndirecte(Integer.parseInt(sub), emp)) {
                     return true;
                 }
             }
-            
+        
+        } catch (DriverException ex){
+            transOn = false;
+            throw new EPSednaException("Error en recuperar empleat", ex);
         } catch (Exception ex) {
-            throw new EPBaseXException("Error en recuperar empleat", ex);
-        }finally{
-            tancarQuery(cq);
+            throw new EPSednaException("Error en recuperar empleat", ex);
         }
         
         return exist;
@@ -536,15 +635,12 @@ public class EPBaseX {
     
     /*METODES PRIVATS*/
     
-    private void tancarQuery(ClientQuery q){
-        try {
-            if(q != null){
-                q.close();                
-            }
-        } catch (IOException ex) {
-            throw new EPBaseXException("Error en tancar la connexió", ex);
+    
+    
+    private void obrirTrans() throws DriverException{
+        if(!transOn){
+            con.begin();
+            transOn = true;
         }
     }
-    
-    
 }
