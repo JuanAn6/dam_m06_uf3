@@ -8,10 +8,12 @@ package org.milaifontanals.xqj;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Properties;
+import javax.xml.namespace.QName;
 import javax.xml.xquery.XQConnection;
 import javax.xml.xquery.XQDataSource;
 import javax.xml.xquery.XQException;
 import javax.xml.xquery.XQExpression;
+import javax.xml.xquery.XQItemType;
 import javax.xml.xquery.XQPreparedExpression;
 
 /**
@@ -106,8 +108,15 @@ public class P03_AfegirContinentAmbPreparedExpression {
                 cad = cad + "preceding " + path + "/mondial/organization[1]";
                 xqe.executeCommand(cad);
             } else {    // XQUF
-                cad = "insert node <continent id='antartica'><name>Antartica</name><area>14000000</area></continent> ";
+                cad = "declare variable $id external;declare variable $name external;";
+                cad = cad + "insert node <continent id='$id'><name>$name</name><area>14000000</area></continent> ";
                 cad = cad + "before " + path + "/mondial/organization[1]";
+                
+                XQItemType xqit = xq.createAtomicType(XQItemType.XQBASETYPE_STRING);
+                
+                xqpe.bindString(new QName("id"), "antartica", xqit);
+                xqpe.bindString(new QName("name"), "Antartica", xqit);
+                
                 xqpe = xq.prepareExpression(cad);
                 xqpe.executeQuery();
             }
