@@ -69,6 +69,8 @@ public class EPXQJ {
     private XQItemType xqitStr;
     private XQPreparedExpression xqpeDept;
     private XQPreparedExpression xqpeEmp;
+    private XQPreparedExpression xqpeGetSubordinat;
+
     
     
     /**
@@ -416,80 +418,108 @@ public class EPXQJ {
 
     
 
-//    /**
-//     * Retorna el numero de subordinats del emplat amb el codi que es pasa
-//     * @param codi
-//     * @return boolean
-//     * @throws EPXQJException
-//     */
-//    
-//    
-//    public int getSubordinats(int codi){
-//        
-//        if(!existeixEmpleat(codi)){
-//            throw new EPXQJException("El empleat no existeix!");
-//        }
-//        
-//        ClientQuery cq = null;
-//        try{
-//            
-//            String getEmpsCount = "count("+path+"/empresa/empleats/emp[@cap='e"+codi+"'])";
-//            cq = con.query(getEmpsCount);
-//            String count = cq.execute();
-//            
-//            return Integer.parseInt(count);
-//            
-//        } catch (Exception ex) {
-//            throw new EPXQJException("Error en recuperar empleat", ex);
-//        }finally{
-//            tancarQuery(cq);
-//        }
-//        
-//        
-//    }
-//    
-//    
-//    /**
-//     * Retorna un boolean si el empleat existeix
-//     * @param codi
-//     * @reutrn boolean
-//     * @throws EPXQJException
-//     */
-//    
-//    public boolean existeixEmpleat(int codi){
-//        
-//        //per saber si el codi es valid abans de fer la petició a la base de dades
-//        try{
-//            new Empleat(codi, "???", null);
-//        }catch(Exception ex){
-//            return false;
-//        }
-//        
-//        if(hmEmps.containsKey(codi)){
-//            return true;
-//        }
-//        
-//        boolean exist = false;
-//        ClientQuery cq = null;
-//        try{
-//            
-//            String getEmp = path+"/empresa/empleats/emp[@codi='e"+codi+"']/@codi/string()";
-//            cq = con.query(getEmp);
-//            String emp_string = cq.execute();
-//            
-//            if(!emp_string.equals("")){
-//                exist = true;
-//            }
-//            
-//        } catch (Exception ex) {
-//            throw new EPXQJException("Error en recuperar empleat", ex);
-//        }finally{
-//            tancarQuery(cq);
-//        }
-//        
-//        return exist;
-//    }
-//    
+    /**
+     * Retorna el numero de subordinats del emplat amb el codi que es pasa
+     * @param codi
+     * @return boolean
+     * @throws EPXQJException
+     */
+    
+    
+    public int getSubordinats(int codi){
+        
+        if(!existeixEmpleat(codi)){
+            throw new EPXQJException("El empleat no existeix!");
+        }
+        
+        
+        if(xqpeGetSubordinat == null){
+            String cad = "declare variable $codi external;";
+            cad = cad+"count("+path+"/empresa/empleats/emp[@codi=$codi])";
+            try{
+                xqpeGetSubordinat = con.prepareExpression(cad);
+            } catch(XQException ex){
+                transOn = false;
+                throw new EPXQJException("Error en crear el prepared expression", ex);
+            }
+        }
+        
+        try {
+            transOn = true;
+            
+            xqpeGetSubordinat.bindString(new QName("codi"), "e"+codi, xqitStr);
+            
+            XQResultSequence xqrs = xqpeGetSubordinat.executeQuery();
+            
+            
+            String count = !xqrs.next() ? xqrs.getItemAsString(null): "0";
+            
+            return Integer.parseInt(count);
+            
+        }catch (XQException ex) {
+            transOn = false;
+            throw new EPXQJException("Error en recuperar suboardinat", ex);
+        } catch (Exception ex) {
+            throw new EPXQJException("Error en recuperar suboardinat", ex);
+        }
+        
+        
+    }
+    
+    
+    /**
+     * Retorna un boolean si el empleat existeix
+     * @param codi
+     * @reutrn boolean
+     * @throws EPXQJException
+     */
+    
+    public boolean existeixEmpleat(int codi){
+        
+        //per saber si el codi es valid abans de fer la petició a la base de dades
+        try{
+            new Empleat(codi, "???", null);
+        }catch(Exception ex){
+            return false;
+        }
+        
+        if(hmEmps.containsKey(codi)){
+            return true;
+        }
+        
+        boolean exist = false;
+        
+        if(xqpeGetSubordinat == null){
+            String cad = "declare variable $codi external;";
+            cad = cad+path+"/empresa/empleats/emp[@codi=$codi]/@codi/string()";
+            try{
+                xqpeGetSubordinat = con.prepareExpression(cad);
+            } catch(XQException ex){
+                transOn = false;
+                throw new EPXQJException("Error en crear el prepared expression", ex);
+            }
+        }
+        
+        try {
+            transOn = true;
+            
+            xqpeGetSubordinat.bindString(new QName("codi"), "e"+codi, xqitStr);
+            
+            XQResultSequence xqrs = xqpeGetSubordinat.executeQuery();
+            
+            if(!xqrs.next()){
+                exist = true;
+            }
+        }catch (XQException ex) {
+            transOn = false;
+            throw new EPXQJException("Error en recuperar empleat", ex);
+        } catch (Exception ex) {
+            throw new EPXQJException("Error en recuperar empleat", ex);
+        }
+        
+        return exist;
+    }
+    
 //    
 //     /**
 //     * Eliminar un empleat i si ens pasen un codi de cap se asigna un nou cap als empleats que esquedarien sense
