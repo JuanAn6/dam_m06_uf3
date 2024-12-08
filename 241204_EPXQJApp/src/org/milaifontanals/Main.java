@@ -44,7 +44,12 @@ public class Main {
         try{
             
             System.out.println("Començament de les proves!");
-
+            
+            Departament d = new Departament(66, "Rizija Solutions", "Igualada");
+            ep.insertDepartament(d);
+            
+            
+            /*
             Empresa empresa = ep.getEmpresa();
             System.out.println(empresa.toString());
             
@@ -55,7 +60,7 @@ public class Main {
             
             Empleat emp = ep.getEmpleat(7369);
             System.out.println("Emp: "+emp);
-            /*
+            
             boolean e = ep.existeixEmpleat(7499);
             System.out.println("Exists: "+e);
             

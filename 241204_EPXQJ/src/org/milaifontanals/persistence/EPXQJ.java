@@ -70,6 +70,10 @@ public class EPXQJ {
     private XQPreparedExpression xqpeDept;
     private XQPreparedExpression xqpeEmp;
     private XQPreparedExpression xqpeGetSubordinat;
+    
+    //Els meus propis metodes de la capa
+    private XQPreparedExpression xqpeExistexDept;
+    private XQPreparedExpression xqpeInsertDept;
 
     
     
@@ -675,6 +679,130 @@ public class EPXQJ {
 //    
 //    
 //    
+    
+    
+    /**
+     * Retorna true si sha isnerti
+     * Insereix el ultim dins de "departaments"
+     * @param codi
+     * @reutrn boolean
+     * @throws EPBaseXException
+     */
+    
+    public boolean insertDepartament(Departament dept){
+        
+        //comprobar que el deprtament es valid i que no existeix en la base de dades
+        
+        
+        if(dept.getCodi() <= 0 && dept.getCodi() >= 99){
+            throw new EPXQJException("El codi del departament no es vàlid");
+        }
+        
+        if(existeixDept(dept.getCodi())){
+            throw new EPXQJException("El departament ja existeix a la base de dades");
+        }
+        
+        
+        if(xqpeInsertDept == null){
+            String cad = "declare variable $codi external;declare variable $nom external;declare variable $localitat external;";
+            
+            if(updateVersion.equals("PL")){
+                cad = cad+"update insert (<dept codi='{$codi}'><nom>{$nom}</nom>"
+                    + "<localitat>{$localitat}</localitat></dept>) "
+                    + "into "+path+"//departaments";
+            
+            }else{
+                cad = cad+"insert node (<dept codi='{$codi}'><nom>{$nom}</nom>"
+                    + "<localitat>{$localitat}</localitat></dept>) "
+                    + "into "+path+"//departaments";
+            }
+            
+            System.out.println("CAD: "+cad);
+            try{
+                xqpeInsertDept = con.prepareExpression(cad);
+            } catch(XQException ex){
+                transOn = false;
+                throw new EPXQJException("Error en crear el prepared expression", ex);
+            }
+        }
+        
+        try {
+            transOn = true;
+            
+            xqpeInsertDept.bindString(new QName("codi"), "d"+dept.getCodi(), xqitStr);
+            xqpeInsertDept.bindString(new QName("nom"), dept.getNom(), xqitStr);
+            xqpeInsertDept.bindString(new QName("localitat"), dept.getLocalitat(), xqitStr);
+            
+            XQResultSequence xqrs = xqpeInsertDept.executeQuery();
+            xqrs.next();
+            
+            hmDepts.put(dept.getCodi(), dept);
+            
+            return true;
+            
+        } catch (XQException ex){
+            transOn = false;
+            throw new EPXQJException("Error en recuperar empleat", ex);
+        } catch (Exception ex) {
+            throw new EPXQJException("Error en insertar departament", ex);
+        }
+        
+    }
+    
+    /**
+     * Retorna true ja existeix a la base de dades el departament
+     * @param codi
+     * @return 
+     */
+    
+    public boolean existeixDept(int codi){
+     
+        if(codi <= 0 && codi >= 99){
+            throw new EPXQJException("El codi del departament no es vàlid");
+        }
+        
+        if(hmDepts.containsKey(codi)){
+            return true;
+        }
+        
+        if(xqpeExistexDept == null){
+            String cad = "declare variable $codi external;";
+            cad = cad+"count("+path+"//dept[@codi=$codi])";
+            try{
+                xqpeExistexDept = con.prepareExpression(cad);
+            } catch(XQException ex){
+                transOn = false;
+                throw new EPXQJException("Error en crear el prepared expression", ex);
+            }
+        }
+        
+        try {
+            transOn = true;
+            
+            xqpeExistexDept.bindString(new QName("codi"), "d"+codi, xqitStr);
+            
+            XQResultSequence xqrs = xqpeExistexDept.executeQuery();
+            xqrs.next();
+            
+            if(Integer.parseInt(xqrs.getItemAsString(null)) > 0 ){
+                return true;
+            }
+
+            return false;
+            
+        } catch (XQException ex){
+            transOn = false;
+            throw new EPXQJException("Error en recuperar empleat", ex);
+        
+        } catch (Exception ex) {
+            throw new EPXQJException("Error en recuperar el departament", ex);
+        }
+        
+    }
+    
+    
+    
+    
     /*METODES PRIVATS*/
     
     private void tancarExpression(XQExpression q){

@@ -557,13 +557,14 @@ public class EPBaseX {
         try{
             String insertDept = "insert node (<dept codi='d"+dept.getCodi()+"'><nom>"+dept.getNom()+"</nom>"
                     + "<localitat>"+dept.getLocalitat()+"</localitat></dept>) "
-                    + "as last into doc('BD/economia/empresa.xml')//departaments";
+                    + "as last into "+path+"//departaments";
             
             cq = con.query(insertDept);
             String dept_insert = cq.execute();
             
             System.out.println("Dept insertat: "+dept.toString()+ " - Retorn: "+dept_insert);
 
+            hmDepts.put(dept.getCodi(), dept);
             
             return true;
             

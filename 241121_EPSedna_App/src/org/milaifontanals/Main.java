@@ -36,6 +36,11 @@ public class Main {
         System.out.println("Començament de les proves!");
         try{
             
+            Departament d = new Departament(66, "Rizija Solutions", "Igualada");
+            ep.insertDepartament(d);
+            
+            
+            /*
             Empresa empresa = ep.getEmpresa();
             System.out.println(empresa.toString());
             
@@ -56,6 +61,7 @@ public class Main {
             int count = ep.getSubordinats(7839);
             System.out.println("Count: "+count);
             
+            */
             
             //System.out.println(ep.esSubordinatDirecteIndirecte(7839, 7499));
             

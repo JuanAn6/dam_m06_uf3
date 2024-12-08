@@ -630,6 +630,98 @@ public class EPSedna {
     }
     
     
+     /**
+     * Retorna true si sha isnerti
+     * Insereix el ultim dins de "departaments"
+     * @param codi
+     * @reutrn boolean
+     * @throws EPBaseXException
+     */
+    
+    public boolean insertDepartament(Departament dept){
+        
+        //comprobar que el deprtament es valid i que no existeix en la base de dades
+        
+        
+        if(dept.getCodi() <= 0 && dept.getCodi() >= 99){
+            throw new EPSednaException("El codi del departament no es vàlid");
+        }
+        
+        if(existeixDept(dept.getCodi())){
+            throw new EPSednaException("El departament ja existeix a la base de dades");
+        }
+        
+        
+        SednaStatement st = null;
+        try{
+            obrirTrans();
+            
+            String insertDept = "update insert (<dept codi='d"+dept.getCodi()+"'><nom>"+dept.getNom()+"</nom>"
+                    + "<localitat>"+dept.getLocalitat()+"</localitat></dept>) "
+                    + "into "+path+"//departaments";
+            
+            st = con.createStatement();
+            st.execute(insertDept);
+            
+            con.commit();
+            
+            hmDepts.put(dept.getCodi(), dept);
+            
+            return true;
+            
+        } catch (DriverException ex){
+            transOn = false;
+            throw new EPSednaException("Error en recuperar empleat", ex);
+        } catch (Exception ex) {
+            throw new EPSednaException("Error en insertar departament", ex);
+        }
+        
+    }
+    
+    /**
+     * Retorna true ja existeix a la base de dades el departament
+     * @param codi
+     * @return 
+     */
+    
+    public boolean existeixDept(int codi){
+     
+        if(codi <= 0 && codi >= 99){
+            throw new EPSednaException("El codi del departament no es vàlid");
+        }
+        
+        if(hmDepts.containsKey(codi)){
+            return true;
+        }
+        
+        
+        SednaStatement st = null;
+        try{
+            obrirTrans();
+            
+            String getDeptCode = path+"//dept[@codi='d"+codi+"']/@codi/string()";
+            st = con.createStatement();
+            st.execute(getDeptCode);
+            SednaSerializedResult pr = st.getSerializedResult();
+            String dept = pr.next();
+            
+            if(dept == null || dept.equals("")){
+                return false;
+            }
+
+            return true;
+            
+        } catch (DriverException ex){
+            transOn = false;
+            throw new EPSednaException("Error en recuperar empleat", ex);
+        
+        } catch (Exception ex) {
+            throw new EPSednaException("Error en recuperar el departament", ex);
+        }
+        
+    }
+    
+    
     
     
     
