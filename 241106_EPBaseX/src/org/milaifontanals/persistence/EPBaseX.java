@@ -531,7 +531,88 @@ public class EPBaseX {
     }
     
     
+    /**
+     * Retorna true si sha isnerti
+     * Insereix el ultim dins de "departaments"
+     * @param codi
+     * @reutrn boolean
+     * @throws EPBaseXException
+     */
     
+    public boolean insertDepartament(Departament dept){
+        
+        //comprobar que el deprtament es valid i que no existeix en la base de dades
+        
+        
+        if(dept.getCodi() <= 0 && dept.getCodi() >= 99){
+            throw new EPBaseXException("El codi del departament no es vàlid");
+        }
+        
+        if(existeixDept(dept.getCodi())){
+            throw new EPBaseXException("El departament ja existeix a la base de dades");
+        }
+        
+        
+        ClientQuery cq = null;
+        try{
+            String insertDept = "insert node (<dept codi='d"+dept.getCodi()+"'><nom>"+dept.getNom()+"</nom>"
+                    + "<localitat>"+dept.getLocalitat()+"</localitat></dept>) "
+                    + "as last into doc('BD/economia/empresa.xml')//departaments";
+            
+            cq = con.query(insertDept);
+            String dept_insert = cq.execute();
+            
+            System.out.println("Dept insertat: "+dept.toString()+ " - Retorn: "+dept_insert);
+
+            
+            return true;
+            
+        } catch (Exception ex) {
+            throw new EPBaseXException("Error en insertar departament", ex);
+        }finally{
+            tancarQuery(cq);
+        }
+        
+    }
+    
+    /**
+     * Retorna true ja existeix a la base de dades el departament
+     * @param codi
+     * @return 
+     */
+    
+    public boolean existeixDept(int codi){
+     
+        if(codi <= 0 && codi >= 99){
+            throw new EPBaseXException("El codi del departament no es vàlid");
+        }
+        
+        if(hmDepts.containsKey(codi)){
+            return true;
+        }
+        
+        
+        ClientQuery cq = null;
+        try{
+            
+            String getDeptCode = path+"//dept[@codi='d"+codi+"']/@codi/string()";
+            cq = con.query(getDeptCode);
+            String dept = cq.execute();
+            
+            
+            if(dept.equals("")){
+                return false;
+            }
+            
+            return true;
+            
+        } catch (Exception ex) {
+            throw new EPBaseXException("Error en recuperar el departament", ex);
+        }finally{
+            tancarQuery(cq);   
+        }
+        
+    }
     
     
     /*METODES PRIVATS*/
