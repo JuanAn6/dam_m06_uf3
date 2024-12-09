@@ -48,6 +48,7 @@ public class Main {
             Departament d = new Departament(66, "Rizija Solutions", "Igualada");
             ep.insertDepartament(d);
             
+            ep.commit();
             
             /*
             Empresa empresa = ep.getEmpresa();

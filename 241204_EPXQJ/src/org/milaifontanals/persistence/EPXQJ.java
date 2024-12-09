@@ -689,7 +689,7 @@ public class EPXQJ {
      * @throws EPBaseXException
      */
     
-    public boolean insertDepartament(Departament dept){
+    public boolean insertDepartament(Departament dept) throws XQException{
         
         //comprobar que el deprtament es valid i que no existeix en la base de dades
         
@@ -702,39 +702,57 @@ public class EPXQJ {
             throw new EPXQJException("El departament ja existeix a la base de dades");
         }
         
-        
+        String cad = "";
         if(xqpeInsertDept == null){
-            String cad = "declare variable $codi external;declare variable $nom external;declare variable $localitat external;";
+            //String cad = "declare variable $codi external;declare variable $nom external;declare variable $localitat external;";
             
             if(updateVersion.equals("PL")){
-                cad = cad+"update insert (<dept codi='{$codi}'><nom>{$nom}</nom>"
-                    + "<localitat>{$localitat}</localitat></dept>) "
+//                cad = cad+"update insert <dept codi='{$codi}'><nom>{$nom}</nom>"
+//                    + "<localitat>{$localitat}</localitat></dept> "
+//                    + "into "+path+"//departaments";
+
+                cad = cad+"update insert (<dept codi='d"+dept.getCodi()+"'><nom>"+dept.getNom()+"</nom>"
+                    + "<localitat>"+dept.getLocalitat()+"</localitat></dept>) "
                     + "into "+path+"//departaments";
             
             }else{
-                cad = cad+"insert node (<dept codi='{$codi}'><nom>{$nom}</nom>"
+                cad = "declare variable $codi external;declare variable $nom external;declare variable $localitat external;";
+            
+                cad = cad+" insert node (<dept codi='{$codi}'><nom>{$nom}</nom>"
                     + "<localitat>{$localitat}</localitat></dept>) "
                     + "into "+path+"//departaments";
+                
+                
+                try{
+                
+                    xqpeInsertDept = con.prepareExpression(cad);
+
+                    xqpeInsertDept.bindString(new QName("codi"), "d"+dept.getCodi(), xqitStr);
+                    xqpeInsertDept.bindString(new QName("nom"), dept.getNom(), xqitStr);
+                    xqpeInsertDept.bindString(new QName("localitat"), dept.getLocalitat(), xqitStr);
+
+                } catch(XQException ex){
+                    transOn = false;
+                    throw new EPXQJException("Error en crear el prepared expression", ex);
+                }
+                
             }
             
-            System.out.println("CAD: "+cad);
-            try{
-                xqpeInsertDept = con.prepareExpression(cad);
-            } catch(XQException ex){
-                transOn = false;
-                throw new EPXQJException("Error en crear el prepared expression", ex);
-            }
         }
         
         try {
             transOn = true;
             
-            xqpeInsertDept.bindString(new QName("codi"), "d"+dept.getCodi(), xqitStr);
-            xqpeInsertDept.bindString(new QName("nom"), dept.getNom(), xqitStr);
-            xqpeInsertDept.bindString(new QName("localitat"), dept.getLocalitat(), xqitStr);
+            if(updateVersion.equals("PL")){
+                
+                XQExpression xqe = null;
+                xqe = con.createExpression();
+                xqe.executeCommand(cad);
             
-            XQResultSequence xqrs = xqpeInsertDept.executeQuery();
-            xqrs.next();
+            }else{
+                XQResultSequence xqrs = xqpeInsertDept.executeQuery();
+                xqrs.next();
+            }
             
             hmDepts.put(dept.getCodi(), dept);
             
@@ -742,13 +760,19 @@ public class EPXQJ {
             
         } catch (XQException ex){
             transOn = false;
-            throw new EPXQJException("Error en recuperar empleat", ex);
+            throw new EPXQJException("Error en insertar departament", ex);
         } catch (Exception ex) {
             throw new EPXQJException("Error en insertar departament", ex);
         }
         
     }
     
+    /**
+     * Retorna true ja existeix a la base de dades el departament
+     * @param codi
+     * @return 
+     */
+        
     /**
      * Retorna true ja existeix a la base de dades el departament
      * @param codi
