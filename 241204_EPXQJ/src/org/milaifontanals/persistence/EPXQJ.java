@@ -10,10 +10,12 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Properties;
 import javax.xml.namespace.QName;
 import javax.xml.xquery.XQConnection;
@@ -524,161 +526,124 @@ public class EPXQJ {
         return exist;
     }
     
-//    
-//     /**
-//     * Eliminar un empleat i si ens pasen un codi de cap se asigna un nou cap als empleats que esquedarien sense
-//     * si es pasa 0 els empleats es queden sense cap.
-//     * @param codi
-//     * @param actCap
-//     * @reutrn boolean
-//     * @throws EPXQJException
-//     */
-//    
-//    public boolean eliminarEmpleat(int codi, int actCap){
-//        
-//        //per saber si el codi es valid abans de fer la petició a la base de dades
-//        try{
-//            new Empleat(codi, "???", null);
-//        }catch(Exception ex){
-//            throw new EPXQJException("Codi de empleat erroni", ex);
-//        }
-//        
-//        if(codi == actCap){
-//            throw new EPXQJException("Han de ser diferents");
-//        }
-//        
-//        if(actCap < 0){
-//            throw new EPXQJException("El codi actCap es erroni");
-//        }
-//        
-//        
-//        ClientQuery cq = null;
-//        String query = "";
-//        try{
-//            
-//            
-//            if(actCap == 0){
-//                
-//                //S'elimina els atributs cap dels subordinats
-//                query = "delete node "+path+"//emp[@cap='e"+codi+"']/@cap";
-//                query = query+" , ";
-//            
-//            }else{
-//               
-//                if(!this.existeixEmpleat(codi)){
-//                    throw new EPXQJException("El Empleat no existex");
-//                }
-//                
-//                if(this.esSubordinatDirecteIndirecte(codi, actCap)){
-//                    throw new EPXQJException("El nou cap es subordinat del que s'elimina!");
-//                }
-//
-//                //Això només per quan es segur que es nomes un únic camp el que es modifica
-//                //query = "replace value of node "+path+"//emp[@cap='e"+codi+"']/@cap with 'e"+actCap+"'";
-//                
-//                //Es modifica els atributs cap dels subordinats
-//                query = query + "for $n in "+path+"//emp[@cap='e"+codi+"']\n " 
-//                    + "return replace value of node $n /@cap with 'e"+actCap+"'\n";
-//                query = query+" , ";
-//                
-//            }
-//            
-//            
-//            query = "delete node "+path+"//emp[@codi='e"+codi+"']";
-//            cq = con.query(query);
-//            cq.execute();
-//            
-//            //Actualitzar els empleats en memoria
-//            hmEmps.remove(codi);
-//            
-//            Collection empleats = hmEmps.values();
-//            Iterator <Empleat> iteEmps = null;
-//            
-//            if(actCap == 0){
-//                iteEmps = empleats.iterator();
-//                while(iteEmps.hasNext()){
-//                    Empleat e = iteEmps.next();
-//                    if(e.getCap() != null && e.getCap().getCodi() == codi){
-//                        e.setCap(null);
-//                    }
-//                }
-//                
-//            }else{
-//                Empleat nouCap = this.getEmpleat(actCap);
-//                
-//                //El iterator ha de ser creat abans de modificar el HashMap perque si no no funciona bé
-//                iteEmps = empleats.iterator();
-//                
-//                while(iteEmps.hasNext()){
-//                    Empleat e = iteEmps.next();
-//                    if(e.getCap() != null && e.getCap().getCodi() == codi){
-//                        e.setCap(nouCap);
-//                    }
-//                }
-//            }
-//            
-//            
-//        }catch(Exception ex){
-//            throw new EPXQJException("Error en eliminar empleat", ex);
-//        }finally{
-//            tancarQuery(cq);
-//        }
-//        
-//        return false;
-//    }
-//    
-//    
-//    /**
-//     * Retorna un boolean si el empleat existeix
-//     * @param codi
-//     * @reutrn boolean
-//     * @throws EPXQJException
-//     */
-//    
-//    public boolean esSubordinatDirecteIndirecte(int cap, int emp){
-//        
-//        if(!existeixEmpleat(cap) || !existeixEmpleat(emp)){
-//            throw new EPXQJException("El empleat o el cap no existeixen a la base de dades");
-//        }
-//        
-//        boolean exist = false;
-//        ClientQuery cq = null;
-//        try{
-//            
-//            String getEmp = path+"//emp[@cap='e"+cap+"']/@codi/string()";
-//            cq = con.query(getEmp);
-//            String emps = cq.execute();
-//            
-//            
-//            
-//            if(emps.equals("")){
-//                return false;
-//            }
-//            
-//            String [] subordinats = emps.split(System.getProperty("line.separator"));
-//           
-//            for (String subordinat : subordinats) {
-//                if (Integer.parseInt(subordinat.substring(1)) == emp) {
-//                    return true;
-//                }
-//                if (esSubordinatDirecteIndirecte(Integer.parseInt(subordinat.substring(1)), emp)) {
-//                    return true;
-//                }
-//            }
-//            
-//        } catch (Exception ex) {
-//            throw new EPXQJException("Error en recuperar empleat", ex);
-//        }finally{
-//            tancarQuery(cq);
-//        }
-//        
-//        return exist;
-//    }
-//    
-//    
-//    
-//    
-//    
+    
+     /**
+     * Eliminar un empleat i si ens pasen un codi de cap se asigna un nou cap als empleats que esquedarien sense
+     * si es pasa 0 els empleats es queden sense cap.
+     * @param codi
+     * @param actCap
+     * @reutrn boolean
+     * @throws EPXQJException
+     */
+    
+    public boolean eliminarEmpleat(int codi, int actCap){
+        
+        //per saber si el codi es valid abans de fer la petició a la base de dades
+        try{
+            new Empleat(codi, "???", null);
+        }catch(Exception ex){
+            throw new EPXQJException("Codi de empleat erroni", ex);
+        }
+        
+        
+        if(codi == actCap){
+            throw new EPXQJException("Han de ser diferents");
+        }
+        
+        if(actCap < 0){
+            throw new EPXQJException("El codi actCap es erroni");
+        }
+        
+        if(updateVersion.equals("XQUF")){
+            eliminarEmpleatXQUF(codi, actCap);
+        }else{
+            eliminarEmpleatPL(codi, actCap);
+        }
+        
+        
+        //Actualitzar els empleats en memoria
+        hmEmps.remove(codi);
+
+        Collection empleats = hmEmps.values();
+        Iterator <Empleat> iteEmps = null;
+
+        if(actCap == 0){
+            iteEmps = empleats.iterator();
+            while(iteEmps.hasNext()){
+                Empleat e = iteEmps.next();
+                if(e.getCap() != null && e.getCap().getCodi() == codi){
+                    e.setCap(null);
+                }
+            }
+
+        }else{
+            Empleat nouCap = this.getEmpleat(actCap);
+
+            //El iterator ha de ser creat abans de modificar el HashMap perque si no no funciona bé
+            iteEmps = empleats.iterator();
+
+            while(iteEmps.hasNext()){
+                Empleat e = iteEmps.next();
+                if(e.getCap() != null && e.getCap().getCodi() == codi){
+                    e.setCap(nouCap);
+                }
+            }
+        }
+            
+        
+        
+        return false;
+    }
+    
+    
+    /**
+     * Retorna un boolean si el empleat existeix
+     * @param codi
+     * @reutrn boolean
+     * @throws EPXQJException
+     */
+    
+    public boolean esSubordinatDirecteIndirecte(int cap, int emp){
+        
+        if(!existeixEmpleat(cap) || !existeixEmpleat(emp)){
+            throw new EPXQJException("El empleat o el cap no existeixen a la base de dades");
+        }
+        
+        boolean exist = false;
+        XQExpression xq = null;
+        try{
+            transOn = true;
+            String getEmp = path+"//emp[@cap='e"+cap+"']/@codi/string()";
+            xq = con.createExpression();
+            
+            XQResultSequence xqrs = xq.executeQuery(getEmp);
+            
+            
+            while(xqrs.next()){
+                String subordinat = xqrs.getItemAsString(null);
+                
+                if (Integer.parseInt(subordinat.substring(1)) == emp) {
+                    return true;
+                }
+                if (esSubordinatDirecteIndirecte(Integer.parseInt(subordinat.substring(1)), emp)) {
+                    return true;
+                }
+            }
+        
+        } catch (XQException ex){
+            transOn = false;
+            throw new EPXQJException("Error en insertar departament", ex);
+        } catch (Exception ex) {
+            throw new EPXQJException("Error en recuperar empleat", ex);
+        }
+        
+        return exist;
+    }
+    
+    
+    
+    
+    
     
     
     /**
@@ -692,8 +657,6 @@ public class EPXQJ {
     public boolean insertDepartament(Departament dept) throws XQException{
         
         //comprobar que el deprtament es valid i que no existeix en la base de dades
-        
-        
         if(dept.getCodi() <= 0 && dept.getCodi() >= 99){
             throw new EPXQJException("El codi del departament no es vàlid");
         }
@@ -703,13 +666,8 @@ public class EPXQJ {
         }
         
         String cad = "";
-        if(xqpeInsertDept == null){
-            //String cad = "declare variable $codi external;declare variable $nom external;declare variable $localitat external;";
-            
+        if(xqpeInsertDept == null){     
             if(updateVersion.equals("PL")){
-//                cad = cad+"update insert <dept codi='{$codi}'><nom>{$nom}</nom>"
-//                    + "<localitat>{$localitat}</localitat></dept> "
-//                    + "into "+path+"//departaments";
 
                 cad = cad+"update insert (<dept codi='d"+dept.getCodi()+"'><nom>"+dept.getNom()+"</nom>"
                     + "<localitat>"+dept.getLocalitat()+"</localitat></dept>) "
@@ -870,6 +828,105 @@ public class EPXQJ {
                 transOn = false;
                 throw new EPXQJException("Error en fer rollback", ex);
             }
+        }
+    }
+
+    private void eliminarEmpleatXQUF(int codi, int actCap) {
+        XQExpression xq = null;
+        String query = "";
+        try{
+            
+            
+            if(actCap == 0){
+                
+                //S'elimina els atributs cap dels subordinats
+                query = "delete node "+path+"//emp[@cap='e"+codi+"']/@cap";
+                query = query+" , ";
+            
+            }else{
+               
+                if(!this.existeixEmpleat(codi)){
+                    throw new EPXQJException("El Empleat no existex");
+                }
+                
+                if(this.esSubordinatDirecteIndirecte(codi, actCap)){
+                    throw new EPXQJException("El nou cap es subordinat del que s'elimina!");
+                }
+
+                //Això només per quan es segur que es nomes un únic camp el que es modifica
+                //query = "replace value of node "+path+"//emp[@cap='e"+codi+"']/@cap with 'e"+actCap+"'";
+                
+                //Es modifica els atributs cap dels subordinats
+                query = query + "for $n in "+path+"//emp[@cap='e"+codi+"']\n " 
+                    + "return replace value of node $n /@cap with 'e"+actCap+"'\n";
+                query = query+" , ";
+                
+            }
+            
+            
+            query = "delete node "+path+"//emp[@codi='e"+codi+"']";
+            xq = con.createExpression();
+            xq.executeQuery(query);
+            
+        } catch (XQException ex){
+            transOn = false;
+            throw new EPXQJException("Error en insertar departament", ex);
+        }catch(Exception ex){
+            throw new EPXQJException("Error en eliminar empleat", ex);
+        }
+    }
+
+    private void eliminarEmpleatPL(int codi, int actCap) {
+        XQExpression xq = null;
+        //En sedna s'ha d'executar les instruccions una a una.
+        List<String> querys = new ArrayList();
+        
+        try{
+            
+        
+            if(actCap == 0){
+                
+                //S'elimina els atributs cap dels subordinats
+                querys.add("update delete "+path+"//emp[@cap='e"+codi+"']/@cap");
+            
+            }else{
+               
+                if(!this.existeixEmpleat(codi)){
+                    throw new EPXQJException("El Empleat no existex");
+                }
+                
+                if(this.esSubordinatDirecteIndirecte(codi, actCap)){
+                    throw new EPXQJException("El nou cap es subordinat del que s'elimina!");
+                }
+
+                //Això només per quan es segur que es nomes un únic camp el que es modifica
+                //query = "replace value of node "+path+"//emp[@cap='e"+codi+"']/@cap with 'e"+actCap+"'";
+                
+                
+                //Si es sedna es pot fer servir el $n in.... si no els altres no ho accepten
+                String aux = "";
+                if(con.getMetaData().getProductName().contains("Sedna")){
+                    aux = "$n in";
+                }
+                
+                //Es modifica els atributs cap dels subordinats
+                querys.add("update replace "+aux+" "+path+"//emp[@cap='e"+codi+"']\n " 
+                    + "with (attribute cap {'e"+actCap+"'})\n");
+            }
+            
+            querys.add("update delete "+path+"//emp[@codi='e"+codi+"']");
+            
+            //Execució de totes les consultes
+            xq = con.createExpression();
+            for(String query : querys){
+                xq.executeCommand(query);
+            }
+            
+        } catch (XQException ex){
+            transOn = false;
+            throw new EPXQJException("Error en insertar departament", ex);
+        }catch(Exception ex){
+            throw new EPXQJException("Error en eliminar empleat", ex);
         }
     }
     
